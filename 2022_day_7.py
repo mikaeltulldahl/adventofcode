@@ -1,12 +1,25 @@
+from __future__ import annotations
 import re
 
 
 class Dir:
-    def __init__(self, name, parent):
+    dir_list = []
+
+    def __init__(self, name, parent: Dir = None):
+        Dir.dir_list.append(self)
         self.content = {}
         self.name = name
         self.parent = parent
         self.size = 0
+
+    def add_item(self, item):
+        self.content[item.name] = item
+        self._update_size(item.size)
+
+    def _update_size(self, delta_size):
+        self.size += delta_size
+        if self.parent:
+            self.parent._update_size(delta_size)
 
 
 class File:
@@ -15,7 +28,7 @@ class File:
         self.name = name
 
 
-root = Dir("", None)
+root = Dir("")
 current_dir = root
 with open("day_7_input.txt") as f:
     while True:
@@ -23,7 +36,6 @@ with open("day_7_input.txt") as f:
         if not line:
             break
         line = line.strip("\n")
-        #print(line)
         if line == "$ ls":
             continue
         elif line.startswith("$ cd "):
@@ -31,35 +43,20 @@ with open("day_7_input.txt") as f:
             for new_path in new_paths:
                 if not new_path:
                     continue
-                #print(f"cd to {new_path}")
                 if new_path == "..":
                     current_dir = current_dir.parent
                 else:
                     current_dir = current_dir.content[new_path]
         elif line.startswith("dir "):  # new dir
-            new_dir = Dir(line[4:], current_dir)
-            current_dir.content[new_dir.name] = new_dir
+            current_dir.add_item(Dir(line[4:], current_dir))
         else:  # new file
             size_str, file_name = re.split(" ", line)
-            new_file = File(int(size_str), file_name)
-            current_dir.content[new_file.name] = new_file
-
-
-def update_dir_size(dir):
-    global total_size
-    dir_list.append(dir)
-    dir.size = 0
-    for item in dir.content.values():
-        if isinstance(item, Dir):
-            update_dir_size(item)
-        dir.size += item.size
-    #print(f"dir: {dir.name}, with size: {dir.size}")
-    if dir.size <= 100000:
-        total_size+=dir.size
+            current_dir.add_item(File(int(size_str), file_name))
 
 total_size = 0
-dir_list = []
-update_dir_size(root)
+for dir in Dir.dir_list:
+    if dir.size <= 100000:
+        total_size += dir.size
 print(f"Part 1, total size: {total_size}")
 
 disk_space = 70000000
@@ -67,7 +64,7 @@ needed_space = 30000000
 used_space = root.size
 min_space_to_delete = used_space + needed_space - disk_space
 best_candidate = root.size
-for dir in dir_list:
+for dir in Dir.dir_list:
     if best_candidate > dir.size >= min_space_to_delete:
         best_candidate = dir.size
 print(f"Part 2, best candidate: {best_candidate}")
